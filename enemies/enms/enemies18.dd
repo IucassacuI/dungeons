@@ -1,0 +1,23 @@
+Tspike 3 5 1000
+Tspike 3 6 1000
+Tspike 4 5 1000
+Tspike 4 6 1000
+Tspike 3 10 1000
+Tspike 3 11 1000
+Tspike 4 10 1000
+Tspike 4 11 1000
+Tspike 40 5 1000
+Tspike 40 6 1000
+Tspike 39 5 1000
+Tspike 39 6 1000
+Tspike 40 10 1000
+Tspike 40 11 1000
+Tspike 39 10 1000
+Tspike 39 11 1000
+Tspike 23 9 500
+Tspike 46 8 1000
+Sspike 21 8
+multiplier 7 5
+multiplier 7 10
+multiplier 37 5
+multiplier 37 10
