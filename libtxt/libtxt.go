@@ -55,19 +55,19 @@ func (o *Object) Move(direction string) {
 	switch direction {
 	case "up":
 		if o.Coll("up") == "" {
-			o.Y -= 1
+			o.Y--
 		}
 	case "down":
 		if o.Coll("down") == "" {
-			o.Y += 1
+			o.Y++
 		}
 	case "left":
 		if o.Coll("left") == "" {
-			o.X -= 1
+			o.X--
 		}
 	case "right":
 		if o.Coll("right") == "" {
-			o.X += 1
+			o.X++
 		}
 	default:
 		panic("???")
@@ -118,7 +118,9 @@ func (o Object) Coll(direction string) string {
 			return fmt.Sprintf("%c/right", right)
 		} else if left != 0 {
 			return fmt.Sprintf("%c/left", left)
-		} else if down != 0 {
+		}
+
+		if down != 0 {
 			return fmt.Sprintf("%c/down", down)
 		} else if up != 0 {
 			return fmt.Sprintf("%c/up", up)

@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"os/exec"
 	"os"
+	"runtime"
 )
 
 type scr struct {
@@ -26,9 +27,12 @@ var lvls embed.FS
 
 func Init() {	
 
-	regcmd := exec.Command(os.ExpandEnv("$windir\\System32\\reg.exe"), "add", "HKCU\\Console", "/v", "VirtualTerminalLevel", "/t", "REG_DWORD", "/d", "1", "/f")
 
-	regcmd.Run()
+	if runtime.GOOS == "windows" {
+		regcmd := exec.Command(os.ExpandEnv("$windir\\System32\\reg.exe"), "add", "HKCU\\Console", "/v", "VirtualTerminalLevel", "/t", "REG_DWORD", "/d", "1", "/f")
+
+		regcmd.Run()
+	}
 
 	for i := range Screen.S {
 		Screen.S[i] = make([]rune, 50)

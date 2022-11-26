@@ -178,17 +178,15 @@ func projectile(x, y int, direction string, magic bool) {
 		speed = 50
 	}
 
-	var col = p.Coll(direction)
-
-	for col == "" && !KillAll {
+	for p.Coll(direction) == "" && !KillAll {
 		
 		p.Move(direction)
 		time.Sleep(speed * time.Millisecond)
-
-		col = p.Coll(direction)
 	}
 
-	if p.Y == hero.GetPlayerPos('Y') && col[0] == '@' {
+	col := p.Coll(direction)
+	
+	if p.Y == hero.GetPlayerPos('Y') && col != "" && col[0] == '@' {
 		if magic {
 			hero.Damage(10)
 		} else {
@@ -237,9 +235,9 @@ func SpawnArcher(x, y int) {
 
 		time.Sleep(time.Second)
 
-		hx := hero.GetPlayerPos('X')
-
 		for health != 0 && !KillAll {
+
+			hx := hero.GetPlayerPos('X')
 
 			for hx-archer.X < 15 && hx-archer.X > 0 && !KillAll && health != 0 {
 				archer.Move("left")
@@ -304,10 +302,14 @@ func SpawnBat(x, y int) {
 
 		for health != 0 && !KillAll {
 
-			_ = damage(&bat, health, bat.Char, 0)
+			if damage(&bat, health, bat.Char, 0){
+				health--
+			}
 
 			time.Sleep(10 * time.Millisecond)
 		}
+
+		bat.Destroy()
 	}()
 
 	go func() {
@@ -322,6 +324,7 @@ func SpawnBat(x, y int) {
 		hx := hero.GetPlayerPos('X')
 
 		for hx+3 != bat.X && hx-3 != bat.X && !KillAll {
+			hx = hero.GetPlayerPos('X')
 			time.Sleep(50 * time.Millisecond)
 		}
 
@@ -330,7 +333,7 @@ func SpawnBat(x, y int) {
 		for health != 0 && !KillAll {
 			direction = directions[rand.Intn(3)]
 
-			for i := 0; i <= 5 && !KillAll; i++ {
+			for i := 0; i <= 15 && !KillAll; i++ {
 
 				if bat.X == 1 {
 					direction = "right"
@@ -390,8 +393,9 @@ func SpawnMultiplier(x, y int, canclone bool) {
 				
 				multiplier.Char = 'o'
 			}
+			time.Sleep(400 * time.Millisecond)
 		}
-		time.Sleep(400 * time.Millisecond)
+
 	}()
 
 	go func() {
@@ -410,7 +414,7 @@ func SpawnMultiplier(x, y int, canclone bool) {
 }
 
 func SensingSpike(x, y int) {
-	var spike libtxt.Object = libtxt.Object{
+	var spike libtxt.Object = libtxt.Object {
 		Char:   '|',
 		Width:  1,
 		Height: 1,
@@ -422,13 +426,13 @@ func SensingSpike(x, y int) {
 	go func() {
 		for !KillAll {
 
-			hx := hero.GetPlayerPos('X')
-			hy := hero.GetPlayerPos('Y')
-
-			if spike.X == hx && spike.Y == hy {
+			if spike.X == hero.GetPlayerPos('X') && spike.Y == hero.GetPlayerPos('Y') {
 				time.Sleep(200 * time.Millisecond)
 				spike.Draw()
-				hero.Damage(7)
+
+				if spike.X == hero.GetPlayerPos('X') && spike.Y == hero.GetPlayerPos('Y') {
+					hero.Damage(7)
+				}
 				time.Sleep(500 * time.Millisecond)
 				spike.Destroy()
 			}
@@ -436,6 +440,7 @@ func SensingSpike(x, y int) {
 		}
 	}()
 }
+
 
 func TimedSpike(x, y int, ms time.Duration) {
 	var spike libtxt.Object = libtxt.Object{
@@ -567,7 +572,9 @@ func SpawnMage(x, y int) {
 	libtxt.Screen.S[y][x+5] = '♦'
 	libtxt.Screen.S[y+1][x+5] = '♦'
 	libtxt.Screen.S[y+2][x+5] = '♦'
+	libtxt.Screen.S[y+3][x+5] = '♦'
 
+	
 	hero.CanMove = false
 
 	magedraw("right")

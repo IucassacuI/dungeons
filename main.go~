@@ -5,44 +5,48 @@ import (
 	"deepdungeons/hero"
 	"deepdungeons/items"
 	"deepdungeons/libtxt"
-	"fmt"
-	"time"
 	_ "embed"
+	"fmt"
 	"strings"
+	"time"
 )
 
 //go:embed title.dd
 var title string
 
-//go:embed intro.dd
+//go:embed intro/intro.dd
 var intro string
 
-//go:embed introtext.dd
+//go:embed intro/introtext.dd
 var introtext string
 
-//go:embed introtext2.dd
+//go:embed intro/introtext2.dd
 var introtext2 string
 
-//go:embed goodending.dd
+//go:embed intro/gend.dd
 var goodending string
 
-//go:embed badending.dd
+//go:embed intro/bend.dd
 var badending string
 
-//go:embed bendtext.dd
+//go:embed intro/bendtext.dd
 var bendtext string
 
-//go:embed gendtext.dd
+//go:embed intro/gendtext.dd
 var gendtext string
 
-var textfiles = map[string]string {
-		"good": gendtext,
-		"bad": bendtext,
-		"intro": introtext,
-		"intro2": introtext2,
+var textfiles = map[string]string{
+	"good":   gendtext,
+	"bad":    bendtext,
+	"intro":  introtext,
+	"intro2": introtext2,
 }
 
 func loadlevel(leveln int) {
+
+	enemies.KillAll = true
+	time.Sleep(2 * time.Second)
+	enemies.KillAll = false
 
 	if leveln < 10 || leveln > 14 {
 
@@ -57,7 +61,7 @@ func loadlevel(leveln int) {
 	}
 
 	if leveln != 20 {
-		    enemies.LoadEnemies(fmt.Sprintf("enms/enemies%d.dd", leveln))
+		enemies.LoadEnemies(fmt.Sprintf("enms/enemies%d.dd", leveln))
 	}
 
 	switch leveln {
@@ -94,17 +98,9 @@ func loadlevel(leveln int) {
 	hero.Damage(0)
 	libtxt.Update()
 
-
 	if !hero.Movement(leveln) {
-	enemies.Kill = true
-	time.Sleep(3 * time.Second)
-	enemies.Kill = false
-	loadlevel(leveln)
+		loadlevel(leveln)
 	}
-
-	enemies.Kill = true
-	time.Sleep(3 * time.Second)
-	enemies.Kill = false
 }
 
 func main() {
@@ -113,8 +109,8 @@ func main() {
 	var timeover bool
 
 	libtxt.Init()
-	
-	go func(){
+
+	go func() {
 		for !timeover {
 			if libtxt.Getkeystroke() != 0 {
 				skip = true
@@ -126,21 +122,21 @@ func main() {
 	timeover = true
 
 	if !skip {
-	fmt.Println(intro)
+		fmt.Println(intro)
 
-	time.Sleep(time.Second)
+		time.Sleep(time.Second)
 
-	text("intro")
+		text("intro")
 
-	time.Sleep(2 * time.Second)
+		time.Sleep(2 * time.Second)
 
-     	fmt.Printf("\033[H\033[2J")
+		fmt.Printf("\033[H\033[2J")
 
-	time.Sleep(time.Second)
-	
-	text("intro2")
+		time.Sleep(time.Second)
 
-	time.Sleep(5 * time.Second)
+		text("intro2")
+
+		time.Sleep(5 * time.Second)
 
 		fmt.Printf("\033[H\033[2J")
 	}
@@ -159,14 +155,16 @@ func main() {
 
 	for libtxt.Getkeystroke() == 0 {
 		time.Sleep(10 * time.Millisecond)
-	}  
-		
-	for i := 1; i <= 20; i++ {
-		loadlevel(i)	
+	}
+
+	hero.HasSword = true
+	
+	for i := 14; i <= 20; i++ {
+		loadlevel(i)
 	}
 
 	time.Sleep(time.Second)
-     	fmt.Printf("\033[H\033[2J")
+	fmt.Printf("\033[H\033[2J")
 
 	if hero.Lost {
 		lose()
@@ -175,38 +173,38 @@ func main() {
 	}
 }
 
-func lose(){
+func lose() {
 	text("bad")
-	
+
 	time.Sleep(time.Second)
-     	fmt.Printf("\033[H\033[2J")
+	fmt.Printf("\033[H\033[2J")
 
 	time.Sleep(2 * time.Second)
-	
+
 	fmt.Println("\tO Cemitério")
 	time.Sleep(3 * time.Second)
-     	fmt.Printf("\033[H\033[2J")
+	fmt.Printf("\033[H\033[2J")
 
 	fmt.Print(badending)
 
 	time.Sleep(30 * time.Second)
 }
 
-func win(){
+func win() {
 
-     	fmt.Printf("\033[H\033[2J")
+	fmt.Printf("\033[H\033[2J")
 
 	time.Sleep(time.Second)
-	
+
 	fmt.Println(goodending)
 	text("good")
 
 	time.Sleep(30 * time.Second)
 }
 
-func text(file string){	
-	
-	for _, line := range(strings.Split(textfiles[file], "\n")){
+func text(file string) {
+
+	for _, line := range strings.Split(textfiles[file], "\n") {
 		time.Sleep(5 * time.Second)
 		fmt.Println(line)
 	}

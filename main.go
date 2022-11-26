@@ -17,6 +17,9 @@ var title string
 //go:embed intro/intro.dd
 var intro string
 
+//go:embed intro/cave.dd
+var cave string
+
 //go:embed intro/introtext.dd
 var introtext string
 
@@ -43,6 +46,10 @@ var textfiles = map[string]string{
 }
 
 func loadlevel(leveln int) {
+
+	enemies.KillAll = true
+	time.Sleep(3 * time.Second)
+	enemies.KillAll = false
 
 	if leveln < 10 || leveln > 14 {
 
@@ -97,10 +104,6 @@ func loadlevel(leveln int) {
 	if !hero.Movement(leveln) {
 		loadlevel(leveln)
 	}
-
-	enemies.Kill = true
-	time.Sleep(3 * time.Second)
-	enemies.Kill = false
 }
 
 func main() {
@@ -119,6 +122,7 @@ func main() {
 	}()
 
 	time.Sleep(time.Second)
+	
 	timeover = true
 
 	if !skip {
@@ -134,6 +138,10 @@ func main() {
 
 		time.Sleep(time.Second)
 
+		fmt.Println(cave)
+
+		time.Sleep(time.Second)
+
 		text("intro2")
 
 		time.Sleep(5 * time.Second)
@@ -141,6 +149,12 @@ func main() {
 		fmt.Printf("\033[H\033[2J")
 	}
 
+	fmt.Print(title)
+
+	for libtxt.Getkeystroke() != 0 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	
 	go func() {
 		for {
 			time.Sleep(time.Millisecond * 50)
@@ -151,13 +165,9 @@ func main() {
 		}
 	}()
 
-	fmt.Print(title)
-
-	for libtxt.Getkeystroke() == 0 {
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	for i := 1; i <= 20; i++ {
+	hero.HasSword = true
+	
+	for i := 19; i <= 20; i++ {
 		loadlevel(i)
 	}
 
@@ -203,7 +213,12 @@ func win() {
 func text(file string) {
 
 	for _, line := range strings.Split(textfiles[file], "\n") {
-		time.Sleep(5 * time.Second)
-		fmt.Println(line)
+
+		for _, char := range strings.Split(line, "") {
+			time.Sleep(100 * time.Millisecond)
+			fmt.Print(char)
+		}
+		fmt.Println()
+		time.Sleep(2 * time.Second)
 	}
 }

@@ -90,7 +90,7 @@ func bow() {
 		y = player.Y + 2
 	}
 
-	var arrow libtxt.Object = libtxt.Object {
+	var a libtxt.Object = libtxt.Object{
 		Char:   c,
 		Width:  1,
 		Height: 1,
@@ -98,20 +98,28 @@ func bow() {
 		Y:      y,
 	}
 
-	arrow.Draw()
+	a.Draw()
 
 	go func() {
+		var col string = a.Coll(direct)
 
-		for arrow.Coll(direct) == "" {
-			arrow.Move(direct)
+		for col == "" {
+			col = a.Coll(direct)
+			a.Move(direct)
 			time.Sleep(100 * time.Millisecond)
 		}
 
+		col = a.Coll(direct)
+
+		if col != "" {
+
 		time.Sleep(300 * time.Millisecond)
-		arrow.Destroy()
+		a.Destroy()
+
+		a.Destroy()
 	}()
 
-	Arrows--
+	Arrows -= 1
 	Damage(0)
 }
 
@@ -151,12 +159,12 @@ func Movement(level int) bool {
 			continue
 		}
 
+		key = libtxt.Getkeystroke()
+
 		if Health <= 0 {
 			break
 		}
 
-		key = libtxt.Getkeystroke()
-		
 		switch key {
 		case 'w':
 			Pdirection = "up"
@@ -172,7 +180,7 @@ func Movement(level int) bool {
 			player.Move("right")
 		case 'm':
 			if HasSword {
-				swordattack(Pdirection)
+				swordattack(player, Pdirection)
 			}
 		case 'n':
 			if HasBow && Arrows > 0 {
@@ -182,18 +190,14 @@ func Movement(level int) bool {
 			os.Exit(0)
 		}
 
-		col := player.Coll("")
-		
-		if col != "" && col[0] == 'D' {
-			goto END
-		
+		if player.Coll("") != "" {
+			if player.Coll("")[0] == 'D' {
+				goto END
+			}
 		}
-
 		time.Sleep(120 * time.Millisecond)
 	}
-
 END:
-	
 	switch level {
 	case 10:
 		return player.Y == 10
