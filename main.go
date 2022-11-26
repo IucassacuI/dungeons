@@ -164,8 +164,6 @@ func main() {
 			}
 		}
 	}()
-
-	hero.HasSword = true
 	
 	for i := 1; i <= 20; i++ {
 		loadlevel(i)
