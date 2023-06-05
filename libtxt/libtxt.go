@@ -52,7 +52,7 @@ type Object struct {
 
 func (o *Object) Move(direction string) {
 
-	if o.Static {
+	if o.Static{
 		return
 	}
 
@@ -75,8 +75,6 @@ func (o *Object) Move(direction string) {
 		if o.Coll("right") == "" {
 			o.X++
 		}
-	default:
-		panic("???")
 	}
 
 	o.Draw()
@@ -91,7 +89,7 @@ func offlimits(o Object) bool {
 
 func (o Object) Draw() {
 
-	if offlimits(o) {
+	if offlimits(o){
 		return
 	}
 
@@ -111,10 +109,6 @@ func (o Object) Draw() {
 }
 
 func (o Object) Destroy() {
-
-	if offlimits(o) {
-		return
-	}
 
 	Screen.m.Lock()
 
