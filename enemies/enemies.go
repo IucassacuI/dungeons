@@ -8,45 +8,66 @@ import (
 	"embed"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 )
-
-var KillAll bool
 
 //go:embed enms
 var enms embed.FS
 
-func gotoplayerpos(enemy *libtxt.Object) string {
+var EnemiesAlive []*Enemy
+
+func contains(enemy *Enemy) bool {
+	for _, elm := range EnemiesAlive {
+		if elm == enemy { return true }
+	}
+
+	return false
+}
+
+type Enemy struct {
+	libtxt.Object
+	health int
+	speed  time.Duration
+	damage int
+	Transition bool
+}
+
+func (enemy *Enemy) GotoPlayerPos() string {
 
 	var direction string
 
 	if enemy.X < hero.GetPlayerPos('X') {
-		enemy.Move("right")
 		direction = "right"
 	} else if enemy.X > hero.GetPlayerPos('X') {
-		enemy.Move("left")
 		direction = "left"
 	}
 
+	enemy.Move(direction)
+
 	if enemy.Y < hero.GetPlayerPos('Y') {
-		enemy.Move("down")
+		direction = "down"
 	} else if enemy.Y > hero.GetPlayerPos('Y') {
-		enemy.Move("up")
+		direction = "up"
+	}
+
+	if enemy.Y != hero.GetPlayerPos('Y') {
+		enemy.Move(direction)
 	}
 
 	return direction
 }
 
-func damage(enemy *libtxt.Object, health int, char rune, damage int) bool {
+func (enemy *Enemy) Damage(damage int) bool {
 
 	var col = enemy.Coll("")
+	var char = enemy.Char
+	var hit = false
 
-	if col == "" {
-		goto END
-	}
+	if strings.Contains(col, "-") || strings.Contains(col, "|") {
+		hit = true
 
-	if col[0] == '-' || col[0] == '|' {
-		enemy.Char = rune(48 + health - 1)
+		enemy.Char = rune(48 + enemy.health - 1)
 
 		enemy.Draw()
 		time.Sleep(200 * time.Millisecond)
@@ -54,277 +75,242 @@ func damage(enemy *libtxt.Object, health int, char rune, damage int) bool {
 
 		enemy.Char = char
 		enemy.Draw()
-		return true
 	}
 
-	if col[0] == '@' {
-		hero.Damage(damage)
-	}
+	if strings.Contains(col, "@") { hero.Damage(enemy.damage) }
 
-END:
-	return false
+	return hit
+}
+
+func (enemy *Enemy) Kill() {
+	enemy.health = 0
+	enemy.Destroy()
+}
+
+func (enemy *Enemy) DamageRoutine() {
+
+	for enemy.health != 0 {
+		if !contains(enemy) {
+			EnemiesAlive = append(EnemiesAlive, enemy)
+		}
+
+		if enemy.Damage(enemy.damage) { enemy.health-- }
+
+		time.Sleep(400 * time.Millisecond)
+	}
+	enemy.Destroy()
+}
+
+func (enemy *Enemy) Walk() {
+	_ = enemy.GotoPlayerPos()
+	time.Sleep(enemy.speed)
+}
+
+func (enemy *Enemy) Cycle() {
+	go enemy.DamageRoutine()
+	for enemy.health != 0 {
+		if enemy.health != 0 { enemy.Walk() }
+	}
 }
 
 func SpawnWalker(x, y int) {
 
-	var walker libtxt.Object = libtxt.Object{
-		Char:   '$',
-		Width:  1,
-		Height: 1,
-		X:      x,
-		Y:      y,
+	var walker Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '$',
+			Width:  1,
+			Height: 1,
+			X:      x,
+			Y:      y,
+		},
+		health: 2,
+		speed:  time.Second,
+		damage: 1,
 	}
 	walker.Draw()
 
-	var health int = 2
-	var speed = time.Second
-
-	go func() {
-
-		for health != 0 && !KillAll {
-
-			if damage(&walker, health, walker.Char, 1) {
-				speed = 400 * time.Millisecond
-				health--
-			}
-
-			time.Sleep(400 * time.Millisecond)
-		}
-	}()
-
-	go func() {
-
-		time.Sleep(time.Second)
-
-		for health != 0 && !KillAll {
-
-			_ = gotoplayerpos(&walker)
-
-			time.Sleep(speed)
-		}
-		walker.Destroy()
-	}()
+	go func() { walker.Cycle() }()
 }
 
 func SpawnRunner(x, y int) {
-	var runner libtxt.Object = libtxt.Object{
-		Char:   '/',
-		Width:  1,
-		Height: 1,
-		X:      x,
-		Y:      y,
+
+	var runner Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '/',
+			Width:  1,
+			Height: 1,
+			X:      x,
+			Y:      y,
+		},
+		health: 3,
+		speed:  400 * time.Millisecond,
+		damage: 2,
 	}
 	runner.Draw()
 
-	go func() {
-		var health int = 3
-		var speed = 400 * time.Millisecond
-
-		time.Sleep(speed)
-
-		for health != 0 && !KillAll {
-
-			_ = gotoplayerpos(&runner)
-
-			if damage(&runner, health, runner.Char, 2) {
-				speed = 200 * time.Millisecond
-				health--
-			}
-
-			time.Sleep(speed)
-		}
-		runner.Destroy()
-	}()
+	go func() { runner.Cycle() }()
 }
 
 func projectile(x, y int, direction string, magic bool) {
-	var p libtxt.Object = libtxt.Object{
-		Char:   '-',
-		Width:  1,
-		Height: 1,
-		X:      x,
-		Y:      y,
+	var p Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '-',
+			Width:  1,
+			Height: 1,
+			X:      x,
+			Y:      y,
+		},
+		damage: 5,
+		speed:  100 * time.Millisecond,
+		health: 1,
 	}
 
-	var speed time.Duration = 100
+	var offset = -2
+
+	if direction == "right" { offset += 4 }
+	p.X += offset
 
 	if magic {
+		p.damage = 10
 		p.Char = '*'
-		speed = 50
 	}
 
-	for p.Coll(direction) == "" && !KillAll {
+	EnemiesAlive = append(EnemiesAlive, &p)
 
+	var collision string = p.Coll(direction)
+
+	for collision == "" && p.health != 0 {
+		collision = p.Coll(direction)
 		p.Move(direction)
-		time.Sleep(speed * time.Millisecond)
+		time.Sleep(p.speed)
 	}
 
-	col := p.Coll(direction)
-
-	if p.Y == hero.GetPlayerPos('Y') && col != "" && col[0] == '@' {
-		if magic {
-			hero.Damage(10)
-		} else {
-			hero.Damage(3)
-		}
-		p.Destroy()
-	}
+	if strings.Contains(collision, "@") { hero.Damage(p.damage) }
 
 	p.Destroy()
 }
 
 func SpawnArcher(x, y int) {
-	var archer libtxt.Object = libtxt.Object{
-		Char:   '<',
-		Width:  1,
-		Height: 1,
-		X:      x,
-		Y:      y,
+	var archer Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '<',
+			Width:  1,
+			Height: 1,
+			X:      x,
+			Y:      y,
+		},
+		health: 3,
+		speed:  500 * time.Millisecond,
+		damage: 3,
 	}
 
 	archer.Draw()
 
-	var health int = 3
-	var playerkill bool = true
-	var speed = 500 * time.Millisecond
+	var herox int = hero.GetPlayerPos('X')
+	var dir string
+
+	go archer.DamageRoutine()
 
 	go func() {
 
-		for health != 0 {
+		for archer.health != 0 {
 
-			if KillAll {
-				playerkill = false
-				health = 0
-			}
+			herox = hero.GetPlayerPos('X')
 
-			if damage(&archer, health, archer.Char, 3) {
-				speed = 250 * time.Millisecond
-				health--
-			}
-
-			time.Sleep(400 * time.Millisecond)
-		}
-	}()
-
-	go func() {
-
-		time.Sleep(time.Second)
-
-		for health != 0 && !KillAll {
-
-			hx := hero.GetPlayerPos('X')
-
-			for hx-archer.X < 15 && hx-archer.X > 0 && !KillAll && health != 0 {
-				archer.Move("left")
-				time.Sleep(500 * time.Millisecond)
-			}
-
-			for hx-archer.X < -5 && hx-archer.X > -25 && !KillAll && health != 0 {
+			if herox-archer.X >= -5 {
 				archer.Char = '>'
-				archer.Move("right")
+
+				for i := 0; i < 10 && archer.health != 0; i++ {
+					time.Sleep(archer.speed)
+					archer.Move("right")
+				}
+
+				time.Sleep(archer.speed)
+			}
+
+			herox = hero.GetPlayerPos('X')
+
+			if archer.X-herox <= 0 && archer.X-herox >= -5 {
+				archer.Char = '<'
+
+				for i := 0; i < 10 && archer.health != 0; i++ {
+					time.Sleep(archer.speed)
+					archer.Move("left")
+				}
+
+				time.Sleep(archer.speed)
+			}
+
+			if archer.X > herox {
+				archer.Char = '<'
+				dir = "left"
+			} else {
+				archer.Char = '>'
+				dir = "right"
+			}
+			archer.Draw()
+			archer.Move(dir)
+
+			for i := 0; i < 5 && archer.health != 0; i++ {
+				projectile(archer.X, archer.Y, dir, false)
 				time.Sleep(time.Second)
 			}
-
-			if hx < archer.X {
-				archer.Char = '<'
-				archer.Draw()
-				for i := 0; i <= 3 && !KillAll && health != 0; i++ {
-					time.Sleep(time.Second)
-					projectile(archer.X-2, archer.Y, "left", false)
-				}
-			}
-
-			if hx > archer.X {
-				archer.Char = '>'
-				archer.Draw()
-				for i := 0; i <= 3 && !KillAll && health != 0; i++ {
-					time.Sleep(speed)
-					projectile(archer.X+2, archer.Y, "right", false)
-				}
-
-			}
-
-			if KillAll {
-				playerkill = false
-				health = 0
-			}
-
-			time.Sleep(time.Second)
-			archer.Char = '<'
 		}
-		archer.Destroy()
+		archer.Kill()
+		if !archer.Transition { items.Chest(archer.X, archer.Y, "arrow") }
 
-		if playerkill {
-			items.Chest(archer.X, archer.Y, "arrow")
-		}
 	}()
 }
 
 func SpawnBat(x, y int) {
-	var bat libtxt.Object = libtxt.Object{
-		Char:   '|',
-		Width:  1,
-		Height: 1,
-		X:      x,
-		Y:      y,
+	var bat Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '|',
+			Width:  1,
+			Height: 1,
+			X:      x,
+			Y:      y,
+		},
+		health: 1,
+		speed:  200 * time.Millisecond,
+		damage: 1,
 	}
 
 	bat.Draw()
 
-	var health int = 1
-
-	go func() {
-
-		for health != 0 && !KillAll {
-
-			if damage(&bat, health, bat.Char, 0) {
-				health--
-			}
-
-			time.Sleep(10 * time.Millisecond)
-		}
-
-		bat.Destroy()
-	}()
+	go bat.DamageRoutine()
 
 	go func() {
 
 		directions := []string{"up", "down", "left", "right"}
-
-		time.Sleep(time.Second)
 
 		direction := "left"
 		rand.Seed(time.Now().UnixNano())
 
 		hx := hero.GetPlayerPos('X')
 
-		for hx+3 != bat.X && hx-3 != bat.X && !KillAll {
+		for hx+3 != bat.X && hx-3 != bat.X {
 			hx = hero.GetPlayerPos('X')
 			time.Sleep(50 * time.Millisecond)
 		}
 
 		bat.Char = '^'
 
-		for health != 0 && !KillAll {
-			direction = directions[rand.Intn(3)]
+		var previousx, previousy int
 
-			for i := 0; i <= 15 && !KillAll; i++ {
-
-				if bat.X == 1 {
-					direction = "right"
-				} else if bat.X == 48 {
-					direction = "left"
-				}
-
-				if bat.Y == 4 {
-					direction = "down"
-				} else if bat.Y == 13 {
-					direction = "up"
-				}
-
+		for bat.health != 0 {
+			for i := 0; i <= 10 && bat.health != 0; i++ {
+				previousx, previousy = bat.X, bat.Y
 				bat.Move(direction)
-				time.Sleep(200 * time.Millisecond)
+
+				if previousx == bat.X && previousy == bat.Y {
+					direction = directions[rand.Intn(4)]
+					bat.Move(direction)
+				}
+
+				time.Sleep(bat.speed)
 			}
+			direction = directions[rand.Intn(4)]
 		}
 		bat.Destroy()
 	}()
@@ -332,32 +318,30 @@ func SpawnBat(x, y int) {
 
 func SpawnMultiplier(x, y int, canclone bool) {
 
-	var multiplier libtxt.Object = libtxt.Object{
-		Char:   'o',
-		Width:  1,
-		Height: 1,
-		X:      x,
-		Y:      y,
+	var multiplier Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   'o',
+			Width:  1,
+			Height: 1,
+			X:      x,
+			Y:      y,
+		},
+		health: 5,
+		speed:  time.Second,
+		damage: 5,
 	}
 
 	multiplier.Draw()
 
-	var health int = 5
-	var speed = time.Second
-
 	if !canclone {
-		speed = 300 * time.Millisecond
+		multiplier.speed = 300 * time.Millisecond
 	}
 
+	go multiplier.Cycle()
+
 	go func() {
-		for health != 0 && !KillAll {
-
-			if damage(&multiplier, health, multiplier.Char, 5) {
-				speed = 300 * time.Millisecond
-				health--
-			}
-
-			if health != 5 && canclone {
+		for multiplier.health != 0 {
+			if multiplier.health != 5 && canclone {
 				multiplier.Char = '%'
 				multiplier.Draw()
 				time.Sleep(500 * time.Millisecond)
@@ -368,46 +352,40 @@ func SpawnMultiplier(x, y int, canclone bool) {
 
 				multiplier.Char = 'o'
 			}
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(multiplier.speed)
 		}
-
-	}()
-
-	go func() {
-
-		time.Sleep(time.Second)
-
-		for health != 0 && !KillAll {
-			_ = gotoplayerpos(&multiplier)
-			time.Sleep(speed)
-		}
-
-		multiplier.Destroy()
 
 	}()
 
 }
 
 func SensingSpike(x, y int) {
-	var spike libtxt.Object = libtxt.Object{
-		Char:   '|',
-		Width:  1,
-		Height: 1,
-		Static: true,
-		X:      x,
-		Y:      y,
+	var spike Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '|',
+			Width:  1,
+			Height: 1,
+			Static: true,
+			X:      x,
+			Y:      y,
+		},
+		health: 1,
+		speed:  50 * time.Millisecond,
+		damage: 7,
 	}
+	EnemiesAlive = append(EnemiesAlive, &spike)
 
 	go func() {
-		for !KillAll {
+		for spike.health == 1 {
 
 			if spike.X == hero.GetPlayerPos('X') && spike.Y == hero.GetPlayerPos('Y') {
 				time.Sleep(200 * time.Millisecond)
 				spike.Draw()
 
 				if spike.X == hero.GetPlayerPos('X') && spike.Y == hero.GetPlayerPos('Y') {
-					hero.Damage(7)
+					hero.Damage(spike.damage)
 				}
+
 				time.Sleep(500 * time.Millisecond)
 				spike.Destroy()
 			}
@@ -417,25 +395,30 @@ func SensingSpike(x, y int) {
 }
 
 func TimedSpike(x, y int, ms time.Duration) {
-	var spike libtxt.Object = libtxt.Object{
-		Char:   '|',
-		Width:  1,
-		Height: 1,
-		Static: true,
-		X:      x,
-		Y:      y,
+	var spike Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '|',
+			Width:  1,
+			Height: 1,
+			Static: true,
+			X:      x,
+			Y:      y,
+		},
+		health: 1,
+		speed:  ms * time.Millisecond,
+		damage: 7,
 	}
+	EnemiesAlive = append(EnemiesAlive, &spike)
 
 	go func() {
-		for !KillAll {
-
+		for spike.health == 1 {
 			hx := hero.GetPlayerPos('X')
 			hy := hero.GetPlayerPos('Y')
 
 			spike.Draw()
 
 			if spike.X == hx && spike.Y == hy {
-				hero.Damage(7)
+				hero.Damage(spike.damage)
 			}
 
 			time.Sleep(200 * time.Millisecond)
@@ -447,41 +430,30 @@ func TimedSpike(x, y int, ms time.Duration) {
 }
 
 func SpawnStatue(x, y int) {
-	var statue libtxt.Object = libtxt.Object{
-		Char:   '&',
-		Width:  1,
-		Height: 1,
-		Static: true,
-		X:      x,
-		Y:      y,
+	var statue Enemy = Enemy{
+		Object: libtxt.Object{
+			Char:   '&',
+			Width:  1,
+			Height: 1,
+			Static: true,
+			X:      x,
+			Y:      y,
+		},
+		health: 8,
+		speed:  200 * time.Millisecond,
+		damage: 7,
 	}
 
 	statue.Draw()
 
-	var health int = 8
-	var speed = 200 * time.Millisecond
+	go statue.DamageRoutine()
 
 	go func() {
-		for health != 0 && !KillAll {
-
-			if damage(&statue, health, statue.Char, 5) {
-				health--
-			}
-
-			time.Sleep(400 * time.Millisecond)
-		}
-		statue.Destroy()
-	}()
-
-	go func() {
-
-		for health != 0 && !KillAll {
-
-			if health != 8 {
+		for statue.health != 0 {
+			if statue.health != 8 {
 				statue.Static = false
-				_ = gotoplayerpos(&statue)
+				statue.Walk()
 			}
-			time.Sleep(speed)
 		}
 	}()
 
@@ -490,9 +462,7 @@ func SpawnStatue(x, y int) {
 func LoadEnemies(filename string) {
 	file, err := enms.Open(filename)
 
-	if err != nil {
-		panic(err)
-	}
+	if err != nil { panic(err) }
 
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -504,9 +474,7 @@ func LoadEnemies(filename string) {
 
 		fmt.Sscanf(scanner.Text(), "%s %d %d %d", &enemy, &enemyx, &enemyy, &ms)
 
-		if err != nil {
-			panic(err)
-		}
+		if err != nil { panic(err) }
 
 		switch enemy {
 		case "walker":
@@ -534,74 +502,59 @@ func LoadEnemies(filename string) {
 }
 
 func Merto(x, y int) {
-	var mage libtxt.Object = libtxt.Object{
-		X:      x,
-		Y:      y,
-		Char:   '§',
-		Static: false,
-		Width:  1,
-		Height: 1,
+	var mage Enemy = Enemy{
+		Object: libtxt.Object {
+			X:      x,
+			Y:      y,
+			Char:   '§',
+			Static: false,
+			Width:  1,
+			Height: 1,
+		},
+		speed: 500 * time.Millisecond,
 	}
-
-	var delay int = 500
 
 	mage.Draw()
 
 	hero.CanMove = false
-
 	time.Sleep(3 * time.Second)
-
 	libtxt.Dialog("dialog/mage1")
 
 	libtxt.RenderText("Merto: 500", 30, 1, 0)
-
 	hero.CanMove = true
-
-	var dir string
 
 	go func() {
 		health := 500
 		for hero.Health > 10 {
-			time.Sleep(time.Duration(delay) * time.Millisecond)
+			time.Sleep(mage.speed)
 			health++
 
-			if delay > 250 {
-				delay -= 3
-			}
-			
+			if mage.speed > 250 { mage.speed -= 3 }
+
 			libtxt.RenderText(fmt.Sprintf("Merto: %d", health), 30, 1, 0)
 		}
 	}()
 
 	for hero.Health > 10 {
-		dir = gotoplayerpos(&mage)
+		dir := mage.GotoPlayerPos()
+		go projectile(mage.X, mage.Y, dir, true)
 
-		if dir == "left" {
-			go projectile(mage.X-2, mage.Y, "left", true)
-		} else if dir == "right" {
-			go projectile(mage.X+2, mage.Y, "right", true)
-		}
-
-		time.Sleep(time.Duration(delay) * time.Millisecond)
+		time.Sleep(mage.speed)
 	}
 
-	KillAll = true
+	for _, enm := range(EnemiesAlive){ enm.Kill() }
 
 	hero.CanMove = false
 
 	time.Sleep(time.Second)
-
 	libtxt.Dialog("dialog/mage2")
-
 	time.Sleep(time.Second)
 
 	hero.CanMove = true
-
 	mage.Destroy()
-
+	libtxt.RenderText("            ", 30, 1, 1)
 	time.Sleep(time.Second)
 
 	libtxt.Screen.S[8][48] = 'D'
-
 	libtxt.Update()
 }
