@@ -15,6 +15,10 @@ import (
 //go:embed text
 var text embed.FS
 
+func check(err error){
+	if err != nil { panic(err) }
+}
+
 func savegame(leveln int) {
 
 	var savedata []byte
@@ -37,20 +41,15 @@ func savegame(leveln int) {
 	}
 
 	err := os.WriteFile("save", savedata, 0644)
-
-	if err != nil {
-		panic(err)
-	}
-
+	check(err)
 }
 
 func loadlevel(leveln int) bool {
-
-	savegame(leveln)
 	
-	enemies.KillAll = true
-	time.Sleep(3 * time.Second)
-	enemies.KillAll = false
+	for _, enemy := range(enemies.EnemiesAlive){
+		enemy.Transition = true
+		enemy.Kill()
+	}
 
 	if leveln < 10 || leveln > 14 {
 
@@ -103,7 +102,13 @@ func loadlevel(leveln int) bool {
 	hero.Damage(0)
 	libtxt.Update()
 
-	return !hero.Movement(leveln)
+	correctdoor := !hero.Movement(leveln)
+
+	if leveln == 14 {
+		time.Sleep(3 * time.Second)
+	}
+
+	return correctdoor
 }
 
 func main() {
@@ -120,15 +125,11 @@ func main() {
 		hero.Arrows = int(savedata[3])
 		hero.HasSword = savedata[4] == 1
 		hero.HasBow = savedata[5] == 1
-	}
-	
+	}	
 	rand.Seed(time.Now().UnixNano())
 
 	title, err := text.ReadFile("text/title")
-
-	if err != nil {
-		panic(err)
-	}
+	check(err)
 
 	fmt.Printf("\033[H\033[2J")
 	fmt.Println(string(title))
@@ -149,20 +150,19 @@ func main() {
 
 	for leveln <= 20 {
 		wrongdoor := loadlevel(leveln)
-
 		if wrongdoor {
 			leveln = 1 + rand.Intn(9)
 		}
+
 		leveln++
+		savegame(leveln)
 	}
 
 	end()
 }
 
 func end() {
-
 	fmt.Printf("\033[H\033[2J")
-
 	libtxt.Dialog("dialog/end")
 
 	time.Sleep(time.Second)
@@ -175,13 +175,9 @@ func end() {
 	fmt.Printf("\033[H\033[2J")
 
 	end, err := text.ReadFile("text/end")
-
-	if err != nil {
-		panic(err)
-	}
+	check(err)
 
 	fmt.Print(string(end))
-
 	time.Sleep(30 * time.Second)
 }
 
@@ -195,14 +191,10 @@ func intro() {
 		fmt.Printf("\033[H\033[2J")
 
 		file, err := text.ReadFile(key)
-
-		if err != nil {
-			panic(err)
-		}
+		check(err)
 
 		fmt.Println(string(file))
-
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 		libtxt.Dialog(val)
 	}
 }
