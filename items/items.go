@@ -160,13 +160,7 @@ func Chest(x, y int, item string) {
 		var opened bool
 		for !opened {
 			col := c.Coll("left")
-			if col == "@" {
-				opened = true
-			}
-
-			if libtxt.Screen.S[c.Y][c.X+1] == 0 {
-				return
-			}
+			if col == "@" { opened = true }
 
 			time.Sleep(50 * time.Millisecond)
 		}
