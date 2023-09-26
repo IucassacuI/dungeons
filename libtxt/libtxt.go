@@ -20,6 +20,7 @@ type scr struct {
 }
 
 var Updated bool
+
 var Screen scr
 
 //go:embed lvls
@@ -52,7 +53,7 @@ type Object struct {
 
 func (o *Object) Move(direction string) {
 
-	if o.Static{
+	if o.Static {
 		return
 	}
 
@@ -205,7 +206,7 @@ func Getkeystroke() rune {
 
 func Update() {
 
-	fmt.Printf("\033[H\033[2J")
+	Clear()
 
 	for _, x := range Screen.S {
 		for _, c := range x {
@@ -350,4 +351,8 @@ func Dialog(filename string) {
 		fmt.Println()
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func Clear(){
+	fmt.Printf("\033[H\033[2J")
 }
