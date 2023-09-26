@@ -46,15 +46,10 @@ func savegame(leveln int) {
 
 func loadlevel(leveln int) bool {
 	
-	for _, enemy := range(enemies.EnemiesAlive){
-		enemy.Transition = true
-		enemy.Kill()
-	}
+	enemies.KillAll()
 
 	if leveln < 10 || leveln > 14 {
-
 		libtxt.LoadScene(fmt.Sprintf("lvls/lvl%d.dd", leveln))
-
 	} else {
 		libtxt.LoadScene("lvls/lvl1.dd")
 		libtxt.Screen.S[6][48] = 'D'
@@ -102,18 +97,17 @@ func loadlevel(leveln int) bool {
 	hero.Damage(0)
 	libtxt.Update()
 
-	correctdoor := !hero.Movement(leveln)
+	wrongdoor := hero.Movement(leveln)
 
 	if leveln == 14 {
 		time.Sleep(3 * time.Second)
 	}
 
-	return correctdoor
+	return wrongdoor
 }
 
 func main() {
 	leveln := 1
-
 	savedata, err := os.ReadFile("save")
 
 	if err != nil {
@@ -125,15 +119,16 @@ func main() {
 		hero.Arrows = int(savedata[3])
 		hero.HasSword = savedata[4] == 1
 		hero.HasBow = savedata[5] == 1
-	}	
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	title, err := text.ReadFile("text/title")
 	check(err)
 
-	fmt.Printf("\033[H\033[2J")
+	libtxt.Clear()
+	
 	fmt.Println(string(title))
-
 	_ = libtxt.Getkeystroke()
 
 	libtxt.Init()
@@ -152,33 +147,42 @@ func main() {
 		wrongdoor := loadlevel(leveln)
 		if wrongdoor {
 			leveln = 1 + rand.Intn(9)
+		} else {
+			leveln++
 		}
-
-		leveln++
-		savegame(leveln)
+		if hero.Health > 0 { savegame(leveln) }
 	}
 
 	end()
 }
 
 func end() {
-	fmt.Printf("\033[H\033[2J")
+	libtxt.Clear()
+
 	libtxt.Dialog("dialog/end")
 
-	time.Sleep(time.Second)
-	fmt.Printf("\033[H\033[2J")
-
+	libtxt.Clear()
 	time.Sleep(2 * time.Second)
 
 	fmt.Println("\tO Cemitério")
 	time.Sleep(3 * time.Second)
-	fmt.Printf("\033[H\033[2J")
+
+	libtxt.Clear()
 
 	end, err := text.ReadFile("text/end")
 	check(err)
 
+	fmt.Println("\tO Cemitério")
 	fmt.Print(string(end))
-	time.Sleep(30 * time.Second)
+
+	time.Sleep(time.Second)
+	libtxt.Clear()
+
+	fmt.Print(string(end))
+
+	for {
+		time.Sleep(time.Second)
+	}
 }
 
 func intro() {
