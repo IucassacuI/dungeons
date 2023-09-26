@@ -1,4 +1,4 @@
-module github.com/IucassacuI/deepdungeons
+module github.com/IucassacuI/dungeons
 
 go 1.18
 
