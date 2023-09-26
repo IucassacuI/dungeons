@@ -10,20 +10,11 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+	"sync"
 )
 
 //go:embed enms
 var enms embed.FS
-
-var EnemiesAlive []*Enemy
-
-func contains(enemy *Enemy) bool {
-	for _, elm := range EnemiesAlive {
-		if elm == enemy { return true }
-	}
-
-	return false
-}
 
 type Enemy struct {
 	libtxt.Object
@@ -31,6 +22,26 @@ type Enemy struct {
 	speed  time.Duration
 	damage int
 	Transition bool
+}
+
+var EnemiesAlive []*Enemy
+var EnemiesGroup sync.WaitGroup
+
+func KillAll(){
+	for _, enemy := range(EnemiesAlive) {
+		enemy.Transition = true
+		enemy.Kill()
+	}
+
+	EnemiesGroup.Wait()
+}
+
+func contains(enemy *Enemy) bool {
+	for _, elm := range EnemiesAlive {
+		if elm == enemy { return true }
+	}
+
+	return false
 }
 
 func (enemy *Enemy) GotoPlayerPos() string {
@@ -88,7 +99,7 @@ func (enemy *Enemy) Kill() {
 }
 
 func (enemy *Enemy) DamageRoutine() {
-
+	EnemiesGroup.Add(1)
 	for enemy.health != 0 {
 		if !contains(enemy) {
 			EnemiesAlive = append(EnemiesAlive, enemy)
@@ -98,6 +109,7 @@ func (enemy *Enemy) DamageRoutine() {
 
 		time.Sleep(400 * time.Millisecond)
 	}
+	EnemiesGroup.Done()
 	enemy.Destroy()
 }
 
@@ -143,7 +155,7 @@ func SpawnRunner(x, y int) {
 			Y:      y,
 		},
 		health: 3,
-		speed:  400 * time.Millisecond,
+		speed:  300 * time.Millisecond,
 		damage: 2,
 	}
 	runner.Draw()
@@ -518,6 +530,7 @@ func Merto(x, y int) {
 
 	hero.CanMove = false
 	time.Sleep(3 * time.Second)
+
 	libtxt.Dialog("dialog/mage1")
 
 	libtxt.RenderText("Merto: 500", 30, 1, 0)
@@ -542,7 +555,8 @@ func Merto(x, y int) {
 		time.Sleep(mage.speed)
 	}
 
-	for _, enm := range(EnemiesAlive){ enm.Kill() }
+	KillAll()
+	EnemiesGroup.Wait()
 
 	hero.CanMove = false
 
