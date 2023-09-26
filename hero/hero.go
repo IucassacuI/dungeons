@@ -36,7 +36,6 @@ var (
 )
 
 func swordattack(direction string) {
-
 	switch direction {
 	case "up":
 		sword.X = player.X
@@ -56,9 +55,14 @@ func swordattack(direction string) {
 		sword.Y = player.Y
 	}
 
-	sword.Draw()
-	time.Sleep(300 * time.Millisecond)
-	sword.Destroy()
+	var pos1 = libtxt.Screen.S[sword.Y][sword.X+1]
+	var pos2 = libtxt.Screen.S[sword.Y][sword.X+2]
+
+	if pos1 == 0 && pos2 == 0 {
+		sword.Draw()
+		time.Sleep(300 * time.Millisecond)
+		sword.Destroy()
+	}
 
 	sword.X = 0
 	sword.Y = 0
@@ -190,24 +194,24 @@ END:
 
 	switch level {
 	case 10:
-		return player.Y == 10
+		return player.Y != 10
 	case 11:
-		return player.Y == 6
+		return player.Y != 6
 	case 12:
-		return player.Y == 12
+		return player.Y != 12
 	case 13:
-		return player.Y == 4
+		return player.Y != 4
 	case 14:
-		return player.Y == 10
+		return player.Y != 10
 	default:
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func Damage(amount int) {
-
+	
 	if Armor > 0 {
 		Armor -= amount
 	} else {
